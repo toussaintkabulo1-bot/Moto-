@@ -1,0 +1,285 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidUser(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.role in ['CLIENT', 'MOTARD'] &&
+             data.phone is string && data.phone.size() <= 30 &&
+             data.nom is string && data.nom.size() >= 1 && data.nom.size() <= 60 &&
+             data.motoModele is string && data.motoModele.size() <= 60 &&
+             data.plaque is string && data.plaque.size() <= 25 &&
+             data.documentTexte is string && data.documentTexte.size() <= 4000 &&
+             data.note is number && data.note >= 0 && data.note <= 5 &&
+             data.totalGains is int && data.totalGains >= 0 && data.totalGains <= 100000000 &&
+             data.totalDepenses is int && data.totalDepenses >= 0 && data.totalDepenses <= 100000000 &&
+             (!('totalRetraits' in data) || (data.totalRetraits is int && data.totalRetraits >= 0 && data.totalRetraits <= 100000000)) &&
+             data.completedRides is int && data.completedRides >= 0 && data.completedRides <= 100000 &&
+             data.enLigne is bool &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidWithdrawal(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.operateur is string && data.operateur.size() >= 1 && data.operateur.size() <= 40 &&
+             data.numero is string && data.numero.size() >= 1 && data.numero.size() <= 30 &&
+             data.montant is int && data.montant > 0 && data.montant <= 100000000 &&
+             data.statut in ['EFFECTUE'] &&
+             data.createdAt is timestamp && data.createdAt <= request.time;
+    }
+
+    function isValidMotardPublic(data) {
+      return data.motardId is string && data.motardId.size() >= 1 && data.motardId.size() <= 128 &&
+             data.nom is string && data.nom.size() >= 1 && data.nom.size() <= 60 &&
+             data.motoModele is string && data.motoModele.size() <= 60 &&
+             data.plaque is string && data.plaque.size() <= 25 &&
+             data.note is number && data.note >= 0 && data.note <= 5 &&
+             data.distanceKm is number && data.distanceKm >= 0 && data.distanceKm <= 500 &&
+             data.quartier is string && data.quartier.size() <= 60 &&
+             data.enLigne is bool &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidRide(data) {
+      return data.id_client is string && data.id_client.size() >= 1 && data.id_client.size() <= 128 &&
+             data.id_motard is string && data.id_motard.size() >= 1 && data.id_motard.size() <= 128 &&
+             data.nom_client is string && data.nom_client.size() >= 1 && data.nom_client.size() <= 60 &&
+             data.nom_motard is string && data.nom_motard.size() >= 1 && data.nom_motard.size() <= 60 &&
+             data.moto_motard is string && data.moto_motard.size() <= 60 &&
+             data.depart is string && data.depart.size() <= 120 &&
+             data.destination is string && data.destination.size() <= 120 &&
+             data.status in ['EN_NEGOCIATION', 'ACCORD_TROUVE', 'EN_COURS', 'TERMINEE'] &&
+             data.prix_actuel is int && data.prix_actuel >= 0 && data.prix_actuel <= 10000000 &&
+             data.dernier_proposeur_id is string && data.dernier_proposeur_id.size() <= 128 &&
+             data.participantUids is list && data.participantUids.size() == 2 &&
+             data.participantUids[0] is string && data.participantUids[1] is string &&
+             data.id_client in data.participantUids &&
+             data.id_motard in data.participantUids &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidMessage(data) {
+      return data.type in ['TEXTE', 'PROPOSITION_PRIX', 'SYSTEME'] &&
+             data.texte is string && data.texte.size() >= 1 && data.texte.size() <= 2000 &&
+             (!('montant' in data) || (data.montant is int && data.montant > 0 && data.montant <= 10000000)) &&
+             data.id_expediteur is string && data.id_expediteur.size() >= 1 && data.id_expediteur.size() <= 128 &&
+             data.nom_expediteur is string && data.nom_expediteur.size() >= 1 && data.nom_expediteur.size() <= 60 &&
+             data.statut_proposition in ['EN_ATTENTE', 'ACCEPTEE', 'REFUSEE'] &&
+             data.participantUids is list && data.participantUids.size() == 2 &&
+             data.participantUids[0] is string && data.participantUids[1] is string &&
+             data.createdAt is timestamp && data.createdAt <= request.time;
+    }
+
+    match /users/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
+      allow list: if false;
+
+      allow create: if isSignedIn() &&
+                       isValidId(userId) &&
+                       request.auth.uid == userId &&
+                       incoming().userId == request.auth.uid &&
+                       incoming().keys().hasAll([
+                         'userId', 'role', 'phone', 'nom', 'motoModele', 'plaque',
+                         'documentTexte', 'note', 'totalGains', 'totalDepenses',
+                         'completedRides', 'enLigne', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'userId', 'role', 'phone', 'nom', 'motoModele', 'plaque',
+                         'documentTexte', 'note', 'totalGains', 'totalDepenses', 'totalRetraits',
+                         'completedRides', 'enLigne', 'createdAt', 'updatedAt'
+                       ]) &&
+                       isValidUser(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(userId) &&
+                       request.auth.uid == userId &&
+                       isValidUser(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly([
+                         'role', 'phone', 'nom', 'motoModele', 'plaque',
+                         'documentTexte', 'note', 'totalGains', 'totalDepenses', 'totalRetraits',
+                         'completedRides', 'enLigne', 'updatedAt'
+                       ]);
+
+      allow delete: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
+
+      match /withdrawals/{withdrawalId} {
+        allow get, list: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
+
+        allow create: if isSignedIn() &&
+                         isValidId(userId) &&
+                         isValidId(withdrawalId) &&
+                         request.auth.uid == userId &&
+                         incoming().userId == request.auth.uid &&
+                         incoming().keys().hasAll([
+                           'userId', 'operateur', 'numero', 'montant', 'statut', 'createdAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'operateur', 'numero', 'montant', 'statut', 'createdAt'
+                         ]) &&
+                         isValidWithdrawal(incoming());
+
+        allow update, delete: if false;
+      }
+    }
+
+    match /motards_public/{motardId} {
+      allow get: if isSignedIn() && isValidId(motardId);
+      allow list: if isSignedIn() && resource.data.enLigne == true;
+
+      allow create: if isSignedIn() &&
+                       isValidId(motardId) &&
+                       request.auth.uid == motardId &&
+                       incoming().motardId == request.auth.uid &&
+                       incoming().keys().hasAll([
+                         'motardId', 'nom', 'motoModele', 'plaque',
+                         'note', 'distanceKm', 'quartier', 'enLigne',
+                         'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'motardId', 'nom', 'motoModele', 'plaque',
+                         'note', 'distanceKm', 'quartier', 'enLigne',
+                         'createdAt', 'updatedAt'
+                       ]) &&
+                       isValidMotardPublic(incoming());
+
+      allow update: if isSignedIn() &&
+                       isValidId(motardId) &&
+                       request.auth.uid == motardId &&
+                       isValidMotardPublic(incoming()) &&
+                       incoming().motardId == existing().motardId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly([
+                         'nom', 'motoModele', 'plaque', 'note',
+                         'distanceKm', 'quartier', 'enLigne', 'updatedAt'
+                       ]);
+
+      allow delete: if isSignedIn() && isValidId(motardId) && request.auth.uid == motardId;
+    }
+
+    match /rides/{rideId} {
+      allow get: if isSignedIn() &&
+                    isValidId(rideId) &&
+                    request.auth.uid in resource.data.participantUids;
+
+      allow list: if isSignedIn() &&
+                     request.auth.uid in resource.data.participantUids;
+
+      allow create: if isSignedIn() &&
+                       isValidId(rideId) &&
+                       isValidRide(incoming()) &&
+                       incoming().keys().hasAll([
+                         'id_client', 'id_motard', 'nom_client', 'nom_motard',
+                         'moto_motard', 'depart', 'destination', 'status',
+                         'prix_actuel', 'dernier_proposeur_id', 'participantUids',
+                         'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'id_client', 'id_motard', 'nom_client', 'nom_motard',
+                         'moto_motard', 'depart', 'destination', 'status',
+                         'prix_actuel', 'dernier_proposeur_id', 'participantUids',
+                         'createdAt', 'updatedAt'
+                       ]) &&
+                       request.auth.uid in incoming().participantUids &&
+                       (request.auth.uid == incoming().id_client || request.auth.uid == incoming().id_motard) &&
+                       incoming().status in ['EN_NEGOCIATION', 'ACCORD_TROUVE'];
+
+      allow update: if isSignedIn() &&
+                       isValidId(rideId) &&
+                       isValidRide(incoming()) &&
+                       request.auth.uid in existing().participantUids &&
+                       existing().status != 'TERMINEE' &&
+                       incoming().id_client == existing().id_client &&
+                       incoming().id_motard == existing().id_motard &&
+                       incoming().participantUids == existing().participantUids &&
+                       incoming().createdAt == existing().createdAt &&
+                       (
+                         (
+                           existing().status == 'EN_NEGOCIATION' &&
+                           incoming().status in ['EN_NEGOCIATION', 'ACCORD_TROUVE'] &&
+                           incoming().diff(existing()).affectedKeys().hasOnly([
+                             'prix_actuel', 'dernier_proposeur_id', 'status', 'updatedAt'
+                           ])
+                         ) ||
+                         (
+                           existing().status == 'ACCORD_TROUVE' &&
+                           incoming().status == 'EN_COURS' &&
+                           request.auth.uid == existing().id_client &&
+                           incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
+                         ) ||
+                         (
+                           existing().status == 'EN_COURS' &&
+                           incoming().status == 'TERMINEE' &&
+                           incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
+                         )
+                       );
+
+      allow delete: if false;
+
+      match /messages/{messageId} {
+        allow get: if isSignedIn() &&
+                      isValidId(rideId) &&
+                      isValidId(messageId) &&
+                      request.auth.uid in resource.data.participantUids;
+
+        allow list: if isSignedIn() &&
+                       request.auth.uid in resource.data.participantUids;
+
+        allow create: if isSignedIn() &&
+                         isValidId(rideId) &&
+                         isValidId(messageId) &&
+                         isValidMessage(incoming()) &&
+                         incoming().id_expediteur == request.auth.uid &&
+                         request.auth.uid in incoming().participantUids &&
+                         incoming().keys().hasAll([
+                           'type', 'texte', 'id_expediteur', 'nom_expediteur',
+                           'statut_proposition', 'participantUids', 'createdAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'type', 'texte', 'montant', 'id_expediteur', 'nom_expediteur',
+                           'statut_proposition', 'participantUids', 'createdAt'
+                         ]) &&
+                         exists(/databases/$(database)/documents/rides/$(rideId)) &&
+                         request.auth.uid in get(/databases/$(database)/documents/rides/$(rideId)).data.participantUids &&
+                         incoming().participantUids == get(/databases/$(database)/documents/rides/$(rideId)).data.participantUids;
+
+        allow update: if isSignedIn() &&
+                         isValidId(rideId) &&
+                         isValidId(messageId) &&
+                         isValidMessage(incoming()) &&
+                         request.auth.uid in existing().participantUids &&
+                         existing().type == 'PROPOSITION_PRIX' &&
+                         existing().statut_proposition == 'EN_ATTENTE' &&
+                         incoming().statut_proposition in ['ACCEPTEE', 'REFUSEE'] &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['statut_proposition']);
+
+        allow delete: if false;
+      }
+    }
+  }
+}

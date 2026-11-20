@@ -1,0 +1,114 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Profil privé d'un utilisateur Wewa (Client ou Motard), incluant téléphone et texte extrait de document.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "UID Firebase Auth du propriétaire." },
+        "role": { "type": "string", "enum": ["CLIENT", "MOTARD"], "description": "Rôle de l'utilisateur." },
+        "phone": { "type": "string", "description": "Numéro de téléphone de contact." },
+        "nom": { "type": "string", "description": "Nom complet affiché." },
+        "motoModele": { "type": "string", "description": "Modèle de moto (pour les motards)." },
+        "plaque": { "type": "string", "description": "Plaque d'immatriculation (pour les motards)." },
+        "documentTexte": { "type": "string", "description": "Texte extrait par scan photo du document (sans stockage d'image)." },
+        "note": { "type": "number", "description": "Note moyenne sur 5." },
+        "totalGains": { "type": "integer", "description": "Gains cumulés du motard." },
+        "totalDepenses": { "type": "integer", "description": "Dépenses cumulées du client." },
+        "totalRetraits": { "type": "integer", "description": "Montant total retiré par le motard." },
+        "completedRides": { "type": "integer", "description": "Nombre de courses terminées." },
+        "enLigne": { "type": "boolean", "description": "Disponibilité en ligne du motard." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Horodatage serveur à la création." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Horodatage serveur de dernière mise à jour." }
+      },
+      "required": ["userId", "role", "phone", "nom", "motoModele", "plaque", "documentTexte", "note", "totalGains", "totalDepenses", "completedRides", "enLigne", "createdAt", "updatedAt"]
+    },
+    "Withdrawal": {
+      "title": "Withdrawal",
+      "description": "Retrait de gains Mobile Money effectué par un motard.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "UID du motard propriétaire." },
+        "operateur": { "type": "string", "description": "Opérateur Mobile Money." },
+        "numero": { "type": "string", "description": "Numéro bénéficiaire du retrait." },
+        "montant": { "type": "integer", "description": "Montant retiré en FC." },
+        "statut": { "type": "string", "enum": ["EFFECTUE"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "operateur", "numero", "montant", "statut", "createdAt"]
+    },
+    "MotardPublic": {
+      "title": "MotardPublic",
+      "description": "Fiche publique non-PII d'un motard visible sur l'écran d'accueil Client.",
+      "type": "object",
+      "properties": {
+        "motardId": { "type": "string", "description": "UID du motard." },
+        "nom": { "type": "string", "description": "Nom du motard." },
+        "motoModele": { "type": "string", "description": "Modèle de la moto." },
+        "plaque": { "type": "string", "description": "Plaque d'immatriculation." },
+        "note": { "type": "number", "description": "Note moyenne." },
+        "distanceKm": { "type": "number", "description": "Distance estimée en km." },
+        "quartier": { "type": "string", "description": "Zone ou quartier actuel." },
+        "enLigne": { "type": "boolean", "description": "Statut en ligne." },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["motardId", "nom", "motoModele", "plaque", "note", "distanceKm", "quartier", "enLigne", "createdAt", "updatedAt"]
+    },
+    "Ride": {
+      "title": "Ride",
+      "description": "Session de course et négociation active entre un Client et un Motard.",
+      "type": "object",
+      "properties": {
+        "id_client": { "type": "string", "description": "UID du client." },
+        "id_motard": { "type": "string", "description": "UID du motard." },
+        "nom_client": { "type": "string", "description": "Nom du client." },
+        "nom_motard": { "type": "string", "description": "Nom du motard." },
+        "moto_motard": { "type": "string", "description": "Modèle de moto." },
+        "depart": { "type": "string", "description": "Point de départ." },
+        "destination": { "type": "string", "description": "Destination." },
+        "status": { "type": "string", "enum": ["EN_NEGOCIATION", "ACCORD_TROUVE", "EN_COURS", "TERMINEE"] },
+        "prix_actuel": { "type": "integer", "description": "Prix convenu ou dernière offre." },
+        "dernier_proposeur_id": { "type": "string", "description": "UID du dernier utilisateur ayant proposé un prix." },
+        "participantUids": { "type": "array", "description": "Liste bornée à 2 UIDs [id_client, id_motard]." },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id_client", "id_motard", "nom_client", "nom_motard", "moto_motard", "depart", "destination", "status", "prix_actuel", "dernier_proposeur_id", "participantUids", "createdAt", "updatedAt"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "Message d'une session de discussion active stocké dans la sous-collection /rides/{rideId}/messages.",
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "enum": ["TEXTE", "PROPOSITION_PRIX", "SYSTEME"] },
+        "texte": { "type": "string", "description": "Contenu textuel du message." },
+        "montant": { "type": "integer", "description": "Montant proposé (optionnel, présent pour PROPOSITION_PRIX)." },
+        "id_expediteur": { "type": "string", "description": "UID de l'expéditeur." },
+        "nom_expediteur": { "type": "string", "description": "Nom de l'expéditeur." },
+        "statut_proposition": { "type": "string", "enum": ["EN_ATTENTE", "ACCEPTEE", "REFUSEE"] },
+        "participantUids": { "type": "array", "description": "UIDs des participants dénormalisés depuis la course parente." },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["type", "texte", "id_expediteur", "nom_expediteur", "statut_proposition", "participantUids", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Profils utilisateurs privés isolés par UID."
+    },
+    "/motards_public/{motardId}": {
+      "schema": { "$ref": "#/entities/MotardPublic" },
+      "description": "Répertoire public sans PII des motards disponibles."
+    },
+    "/rides/{rideId}": {
+      "schema": { "$ref": "#/entities/Ride" },
+      "description": "Sessions de courses et négociation de prix."
+    },
+    "/rides/{rideId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/Message" },
+      "description": "Sous-collection dédiée aux messages d'une session de discussion active."
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "Wewa",
+  "description": "Application de mise en relation Clients / Motards avec profil téléphonique, connexion Google, chat texte et vocal, négociation de prix, paiement, retrait des gains et lecture hors ligne.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
